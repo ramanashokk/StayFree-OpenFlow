@@ -1312,6 +1312,14 @@ function switchVersion(v) {
   location.href = v + '.html';
 }
 
+// ── Service Worker registration ───────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/StayFree-OpenFlow/sw.js', { scope: '/StayFree-OpenFlow/' })
+      .catch(e => console.warn('SW registration failed:', e));
+  });
+}
+
 // ── Global error handler (prevents blank page on mobile) ──────────────
 window.onerror = function(msg, src, line, col, err) {
   const el = document.getElementById('toast');
