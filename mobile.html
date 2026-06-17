@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StayFree OpenFlow — Voice Dictation, Free Forever</title>
+<meta name="description" content="AI-powered voice dictation. Free forever. No subscriptions.">
+<link rel="manifest" href="manifest.json" />
+<style>
+  /* ── Design tokens ── */
+  :root {
+    --bg:        #0B0C0E;
+    --surface:   #141518;
+    --surface2:  #1C1D22;
+    --border:    #2A2B32;
+    --text:      #EAEAF0;
+    --muted:     #6B6C78;
+    --accent:    #6366F1;   /* indigo — OpenFlow identity color */
+    --accent2:   #818CF8;
+    --danger:    #EF4444;
+    --green:     #22C55E;
+    --amber:     #F59E0B;
+    --radius:    14px;
+    --radius-sm: 8px;
+    --font-ui:   'Inter', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --shadow:    0 8px 32px rgba(0,0,0,0.5);
+    --glow:      0 0 20px rgba(99,102,241,0.35);
+  }
+  .light {
+    --bg:        #F5F6FA;
+    --surface:   #FFFFFF;
+    --surface2:  #EEEEF5;
+    --border:    #D9DAE6;
+    --text:      #111118;
+    --muted:     #8E8FA0;
+    --shadow:    0 4px 20px rgba(0,0,0,0.10);
+    --glow:      0 0 20px rgba(99,102,241,0.20);
+  }
+
+  /* ── Reset ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: background .3s, color .3s;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; height: 100vh; overflow: hidden; }
+  .sidebar {
+    width: 260px; min-width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    transition: width .25s, transform .25s;
+    z-index: 10;
+  }
+  .sidebar.collapsed { width: 60px; min-width: 60px; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Sidebar header ── */
+  .sb-header {
+    padding: 18px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .logo-mark {
+    width: 32px; height: 32px; min-width: 32px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 800; color: #fff;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.4);
+    letter-spacing: -1px;
+  }
+  .logo-text { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; }
+  .logo-text span { color: var(--accent2); }
+  .logo-sub { font-size: 10px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+
+  /* ── Nav ── */
+  .sb-nav { flex: 1; padding: 10px 8px; overflow-y: auto; }
+  .nav-section { margin-bottom: 6px; }
+  .nav-label { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; padding: 8px 8px 4px; white-space: nowrap; overflow: hidden; }
+  .sidebar.collapsed .nav-label { opacity: 0; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: var(--radius-sm);
+    font-size: 13.5px; font-weight: 500; color: var(--muted);
+    cursor: pointer; transition: background .15s, color .15s;
+    white-space: nowrap; overflow: hidden;
+    border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: rgba(99,102,241,.15); color: var(--accent2); }
+  .nav-item .icon { font-size: 16px; min-width: 20px; text-align: center; }
+  .nav-item .label { flex: 1; }
+  .nav-item .badge {
+    background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: 99px; min-width: 18px; text-align: center;
+  }
+  .sidebar.collapsed .label, .sidebar.collapsed .badge, .sidebar.collapsed .nav-label { display: none; }
+
+  /* ── Topbar ── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    height: 56px; min-height: 56px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .topbar-title { font-size: 15px; font-weight: 600; flex: 1; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+  .btn-icon {
+    width: 34px; height: 34px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer; color: var(--muted);
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .btn-icon:hover { background: var(--border); color: var(--text); }
+
+  /* ── Main content ── */
+  .content-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+  /* ── Record zone ── */
+  .record-zone {
+    padding: 28px 28px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .rz-label { font-size: 11px; font-weight: 600; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 14px; }
+  .rz-center { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .mic-btn {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; cursor: pointer;
+    transition: all .2s ease;
+    position: relative; outline: none;
+  }
+  .mic-btn:hover { border-color: var(--accent); background: rgba(99,102,241,.1); }
+  .mic-btn.recording {
+    background: rgba(239,68,68,.12);
+    border-color: var(--danger);
+    animation: pulse-ring 1.4s ease infinite;
+    box-shadow: 0 0 0 0 rgba(239,68,68,.5);
+  }
+  .mic-btn.processing {
+    background: rgba(99,102,241,.12);
+    border-color: var(--accent);
+    animation: spin-glow 1s linear infinite;
+  }
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0   rgba(239,68,68,.5); }
+    70%  { box-shadow: 0 0 0 16px rgba(239,68,68,0);  }
+    100% { box-shadow: 0 0 0 0   rgba(239,68,68,0);   }
+  }
+  @keyframes spin-glow {
+    from { box-shadow: 0 0 12px rgba(99,102,241,.4), 0 0 0 2px var(--accent); }
+    50%  { box-shadow: 0 0 24px rgba(99,102,241,.7), 0 0 0 2px var(--accent2); }
+    to   { box-shadow: 0 0 12px rgba(99,102,241,.4), 0 0 0 2px var(--accent); }
+  }
+  .mic-status { font-size: 13px; color: var(--muted); font-weight: 500; }
+  .mic-status.live  { color: var(--danger); }
+  .mic-status.proc  { color: var(--accent2); }
+
+  /* ── Waveform ── */
+  .waveform-bar {
+    display: flex; align-items: center; gap: 3px; height: 28px;
+    opacity: 0; transition: opacity .3s;
+  }
+  .waveform-bar.active { opacity: 1; }
+  .waveform-bar span {
+    display: block; width: 3px; border-radius: 99px;
+    background: var(--danger); min-height: 4px;
+    transition: height .08s ease;
+  }
+
+  /* ── Live transcript box ── */
+  .live-box {
+    margin-top: 12px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    min-height: 60px;
+    font-size: 14px; line-height: 1.6; color: var(--text);
+    font-style: italic; color: var(--muted);
+    transition: border-color .2s;
+  }
+  .live-box.has-text { color: var(--text); font-style: normal; }
+  .live-box.recording-active { border-color: rgba(239,68,68,.4); }
+
+  /* ── Controls row ── */
+  .controls-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .btn {
+    padding: 8px 16px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    border: 1px solid transparent; transition: all .15s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+  .btn-secondary { background: var(--surface2); color: var(--text); border-color: var(--border); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent2); }
+  .btn-danger { background: rgba(239,68,68,.12); color: var(--danger); border-color: rgba(239,68,68,.3); }
+  .btn-danger:hover { background: rgba(239,68,68,.2); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── AI mode pills ── */
+  .mode-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .mode-pill {
+    padding: 5px 12px; border-radius: 99px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+    transition: all .15s;
+  }
+  .mode-pill.active { background: rgba(99,102,241,.15); border-color: var(--accent); color: var(--accent2); }
+  .mode-pill:hover { border-color: var(--accent); color: var(--accent2); }
+
+  /* ── Options ── */
+  .options-row {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 28px 0;
+    font-size: 12.5px; color: var(--muted);
+  }
+  .toggle-row { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .toggle {
+    width: 34px; height: 19px; border-radius: 99px; background: var(--border);
+    position: relative; cursor: pointer; transition: background .2s;
+    border: none; outline: none;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: ''; position: absolute;
+    top: 2px; left: 2px; width: 15px; height: 15px;
+    background: #fff; border-radius: 50%;
+    transition: transform .2s;
+  }
+  .toggle.on::after { transform: translateX(15px); }
+
+  /* ── History list ── */
+  .history-area {
+    flex: 1; overflow-y: auto; padding: 16px 28px;
+  }
+  .history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .history-title { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .06em; text-transform: uppercase; }
+  .history-count { font-size: 11px; color: var(--muted); }
+  .history-empty {
+    text-align: center; padding: 48px 20px;
+    color: var(--muted); font-size: 14px; line-height: 1.6;
+  }
+  .history-empty .icon { font-size: 40px; margin-bottom: 10px; opacity: .4; }
+
+  /* ── History card ── */
+  .h-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    transition: border-color .15s, transform .15s;
+    cursor: default;
+  }
+  .h-card:hover { border-color: rgba(99,102,241,.4); transform: translateY(-1px); }
+  .h-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+  .h-card-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .h-tag {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+    letter-spacing: .04em; text-transform: uppercase;
+  }
+  .h-tag.raw    { background: rgba(107,108,120,.2); color: var(--muted); }
+  .h-tag.clean  { background: rgba(99,102,241,.15); color: var(--accent2); }
+  .h-tag.bullet { background: rgba(34,197,94,.12);  color: var(--green);   }
+  .h-tag.email  { background: rgba(245,158,11,.12); color: var(--amber);   }
+  .h-card-time { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .h-card-body { font-size: 13.5px; line-height: 1.65; color: var(--text); word-break: break-word; }
+  .h-card-actions { display: flex; gap: 6px; margin-top: 10px; }
+  .h-btn {
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 11.5px; font-weight: 600; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2); color: var(--muted);
+    transition: all .15s;
+  }
+  .h-btn:hover { border-color: var(--accent); color: var(--accent2); }
+  .h-btn.copied { color: var(--green); border-color: var(--green); }
+  .h-btn.del { color: var(--danger); border-color: rgba(239,68,68,.25); }
+  .h-btn.del:hover { background: rgba(239,68,68,.08); }
+
+  /* ── Settings panel ── */
+  .panel {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+    opacity: 0; pointer-events: none;
+    transition: opacity .2s;
+  }
+  .panel.open { opacity: 1; pointer-events: all; }
+  .panel-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    width: min(520px, 94vw);
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 28px;
+    box-shadow: var(--shadow);
+    transform: translateY(12px);
+    transition: transform .2s;
+  }
+  .panel.open .panel-box { transform: translateY(0); }
+  .panel-title { font-size: 18px; font-weight: 700; margin-bottom: 22px; display: flex; justify-content: space-between; align-items: center; }
+  .panel-close { font-size: 22px; cursor: pointer; color: var(--muted); line-height: 1; padding: 2px 6px; border-radius: 6px; background: none; border: none; }
+  .panel-close:hover { color: var(--text); background: var(--surface2); }
+  .setting-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 0; border-bottom: 1px solid var(--border);
+    gap: 16px;
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { font-size: 13.5px; font-weight: 500; }
+  .setting-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .select-input {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    padding: 6px 10px; font-size: 13px; cursor: pointer;
+    outline: none; font-family: var(--font-ui);
+  }
+  .select-input:focus { border-color: var(--accent); }
+  .shortcut-badge {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px 10px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--text);
+    white-space: nowrap;
+  }
+  .api-input {
+    width: 100%;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text);
+    padding: 8px 12px; font-size: 13px; font-family: var(--font-mono);
+    outline: none; margin-top: 8px;
+  }
+  .api-input:focus { border-color: var(--accent); }
+  .api-save { margin-top: 10px; }
+  .info-box {
+    background: rgba(99,102,241,.08);
+    border: 1px solid rgba(99,102,241,.2);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+    font-size: 12.5px; color: var(--accent2); line-height: 1.6;
+    margin-top: 16px;
+  }
+
+  /* ── Floating mic widget (Wispr-style) ── */
+  .float-widget {
+    position: fixed; bottom: 32px; right: 32px;
+    z-index: 200;
+    display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+  }
+  .float-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: var(--shadow);
+    min-width: 240px;
+    opacity: 0; pointer-events: none;
+    transform: translateY(10px) scale(.96);
+    transition: all .2s ease;
+  }
+  .float-card.visible { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+  .float-transcript { font-size: 13px; flex: 1; color: var(--text); font-style: italic; color: var(--muted); }
+  .float-transcript.has-text { color: var(--text); font-style: normal; }
+  .float-mic {
+    width: 50px; height: 50px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer; color: #fff;
+    box-shadow: var(--glow);
+    transition: all .2s; outline: none;
+    flex-shrink: 0;
+  }
+  .float-mic:hover { transform: scale(1.06); box-shadow: 0 0 28px rgba(99,102,241,.5); }
+  .float-mic.recording { background: linear-gradient(135deg, #EF4444, #F87171); animation: pulse-ring 1.4s ease infinite; }
+  .float-mic.processing { animation: spin-glow 1s linear infinite; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 18px;
+    font-size: 13.5px; font-weight: 500; color: var(--text);
+    box-shadow: var(--shadow); z-index: 999;
+    opacity: 0; transition: all .25s;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); }
+  .toast.error   { border-color: var(--danger); }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+  /* ── Mobile ── */
+  @media(max-width: 640px) {
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; transform: translateX(-100%); z-index: 50; }
+    .sidebar.mobile-open { transform: translateX(0); }
+    .float-widget { bottom: 20px; right: 20px; }
+    .record-zone { padding: 20px 16px 12px; }
+    .history-area { padding: 12px 16px; }
+    .options-row { padding: 10px 16px 0; }
+  }
+
+  /* ── Animations ── */
+  .fade-in { animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<!-- ── Toast ─────────────────────────── -->
+<div class="toast" id="toast"></div>
+
+<!-- ── Settings Panel ────────────────── -->
+<div class="panel" id="settingsPanel">
+  <div class="panel-box">
+    <div class="panel-title">
+      Settings
+      <button class="panel-close" onclick="closeSettings()">✕</button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Groq API Key</div>
+        <div class="setting-desc">Used for AI cleanup. Free tier: 6000 req/min.</div>
+        <input class="api-input" type="password" id="apiKeyInput" placeholder="gsk_..." />
+        <div style="display:flex; gap:8px; margin-top:8px;">
+          <button class="btn btn-primary api-save" onclick="saveApiKey()">Save Key</button>
+          <button class="btn btn-secondary" onclick="clearApiKey()">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Keyboard Shortcut</div>
+        <div class="setting-desc">Hold to record, release to transcribe</div>
+      </div>
+      <span class="shortcut-badge" id="shortcutBadge">Space (hold)</span>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Language</div>
+        <div class="setting-desc">Transcription language</div>
+      </div>
+      <select class="select-input" id="langSelect">
+        <option value="en">English</option>
+        <option value="hi">Hindi</option>
+        <option value="auto">Auto-detect</option>
+        <option value="es">Spanish</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="zh">Chinese</option>
+        <option value="ar">Arabic</option>
+        <option value="pt">Portuguese</option>
+        <option value="ja">Japanese</option>
+      </select>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Auto-copy to clipboard</div>
+        <div class="setting-desc">Copy result immediately after transcription</div>
+      </div>
+      <button class="toggle" id="toggleAutoCopy" onclick="toggleSetting('autoCopy', this)"></button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Floating widget</div>
+        <div class="setting-desc">Show floating mic button on screen</div>
+      </div>
+      <button class="toggle on" id="toggleFloat" onclick="toggleSetting('floatWidget', this)"></button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">Dark mode</div>
+        <div class="setting-desc">Toggle light/dark theme</div>
+      </div>
+      <button class="toggle on" id="toggleDark" onclick="toggleTheme(this)"></button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">AI cleanup model</div>
+        <div class="setting-desc">Groq model for post-processing</div>
+      </div>
+      <select class="select-input" id="modelSelect">
+        <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+        <option value="llama-3.1-8b-instant">Llama 3.1 8B (fast)</option>
+        <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+        <option value="gemma2-9b-it">Gemma 2 9B</option>
+      </select>
+    </div>
+
+    <div class="info-box">
+      🔓 StayFree OpenFlow is <strong>100% free</strong>. Your API key stays in your browser. No server, no tracking, no limits beyond Groq's free tier (very generous).
+    </div>
+  </div>
+</div>
+
+<!-- ── Floating widget ───────────────── -->
+<div class="float-widget" id="floatWidget">
+  <div class="float-card" id="floatCard">
+    <div class="float-transcript" id="floatTranscript">Listening…</div>
+    <button class="h-btn" onclick="copyFloat()">Copy</button>
+  </div>
+  <button class="float-mic" id="floatMic" onclick="toggleRecord()" title="Click or hold Space to record">🎙️</button>
+</div>
+
+<!-- ── App shell ─────────────────────── -->
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-header">
+      <div class="logo-mark">SF</div>
+      <div>
+        <div class="logo-text">StayFree <span>OpenFlow</span></div>
+        <div class="logo-sub">Voice dictation · Free forever</div>
+      </div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-section">
+        <div class="nav-label">Record</div>
+        <button class="nav-item active" onclick="setView('record', this)">
+          <span class="icon">🎙️</span><span class="label">Dictate</span>
+        </button>
+        <button class="nav-item" onclick="setView('history', this)">
+          <span class="icon">🗂️</span><span class="label">History</span>
+          <span class="badge" id="historyBadge">0</span>
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Tools</div>
+        <button class="nav-item" onclick="setView('cleanup', this)">
+          <span class="icon">✨</span><span class="label">AI Rewrite</span>
+        </button>
+        <button class="nav-item" onclick="setView('bulk', this)">
+          <span class="icon">📋</span><span class="label">Paste &amp; Clean</span>
+        </button>
+      </div>
+      <div class="nav-section">
+        <div class="nav-label">Config</div>
+        <button class="nav-item" onclick="openSettings()">
+          <span class="icon">⚙️</span><span class="label">Settings</span>
+        </button>
+      </div>
+    </nav>
+    <div style="padding:12px 8px; border-top:1px solid var(--border);">
+      <div class="nav-item" style="color:var(--green); font-size:12px;">
+        <span class="icon">🔓</span><span class="label">Free Forever · No Limits</span>
+      </div>
+      <button class="nav-item" style="font-size:12px;" onclick="switchVersion('desktop')">
+        <span class="icon">🖥️</span><span class="label">Switch to Desktop</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <button class="btn-icon" onclick="toggleSidebar()" title="Toggle sidebar">☰</button>
+      <div class="topbar-title" id="topbarTitle">Dictate</div>
+      <div class="topbar-actions">
+        <button class="btn-icon" onclick="openSettings()" title="Settings">⚙️</button>
+        <button class="btn-icon" onclick="toggleThemeBtn()" title="Toggle theme" id="themeBtn">🌙</button>
+        <button class="btn-icon" onclick="clearHistory()" title="Clear all history">🗑️</button>
+      </div>
+    </div>
+
+    <!-- Content area -->
+    <div class="content-area">
+
+      <!-- ── VIEW: Dictate ── -->
+      <div id="view-record">
+        <!-- Record zone -->
+        <div class="record-zone">
+          <div class="rz-label">Voice input</div>
+          <div class="rz-center">
+            <button class="mic-btn" id="mainMic" onclick="toggleRecord()" title="Click or hold Space">🎙️</button>
+            <div class="waveform-bar" id="waveBar">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="mic-status" id="micStatus">Click mic or hold Space to start</div>
+          </div>
+          <div class="live-box" id="liveBox">Your spoken text will appear here in real time…</div>
+          <div class="controls-row">
+            <div class="mode-pills">
+              <div class="mode-pill active" data-mode="clean" onclick="setMode(this, 'clean')">✨ Clean up</div>
+              <div class="mode-pill" data-mode="bullets" onclick="setMode(this, 'bullets')">• Bullet points</div>
+              <div class="mode-pill" data-mode="email" onclick="setMode(this, 'email')">📧 Email draft</div>
+              <div class="mode-pill" data-mode="raw" onclick="setMode(this, 'raw')">📝 Raw transcript</div>
+            </div>
+          </div>
+          <div class="controls-row">
+            <button class="btn btn-primary" id="btnProcess" onclick="processTranscript()" disabled>✨ Process with AI</button>
+            <button class="btn btn-secondary" id="btnCopy" onclick="copyResult()" disabled>📋 Copy</button>
+            <button class="btn btn-secondary" onclick="saveToHistory()" id="btnSave" disabled>💾 Save</button>
+            <button class="btn btn-danger" onclick="clearLive()" id="btnClear" disabled>✕ Clear</button>
+          </div>
+        </div>
+
+        <!-- Options strip -->
+        <div class="options-row">
+          <div class="toggle-row" onclick="toggleSetting('autoCopy', document.getElementById('toggleAutoCopy'))">
+            <button class="toggle" id="autoOpt" style="pointer-events:none;"></button>
+            <span>Auto-copy</span>
+          </div>
+          <div class="toggle-row" onclick="toggleSetting('floatWidget', document.getElementById('toggleFloat'))">
+            <button class="toggle on" id="floatOpt" style="pointer-events:none;"></button>
+            <span>Float widget</span>
+          </div>
+          <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+            <span>Lang:</span>
+            <select class="select-input" id="langInline" style="padding:3px 8px; font-size:12px;">
+              <option value="en">EN</option>
+              <option value="hi">HI</option>
+              <option value="auto">Auto</option>
+              <option value="es">ES</option>
+              <option value="fr">FR</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- History area (within record view) -->
+        <div class="history-area" id="historyArea">
+          <div class="history-header">
+            <span class="history-title">Recent</span>
+            <span class="history-count" id="histCount">0 items</span>
+          </div>
+          <div id="historyList">
+            <div class="history-empty fade-in">
+              <div class="icon">🎙️</div>
+              <div>No recordings yet.<br>Click the mic or hold <strong>Space</strong> to start.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VIEW: History ── -->
+      <div id="view-history" style="display:none;">
+        <div class="history-area" style="padding-top:20px;">
+          <div class="history-header">
+            <span class="history-title">All history</span>
+            <span class="history-count" id="histCountFull">0 items</span>
+          </div>
+          <div id="historyListFull">
+            <div class="history-empty fade-in">
+              <div class="icon">🗂️</div>
+              <div>No saved transcriptions yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VIEW: AI Rewrite ── -->
+      <div id="view-cleanup" style="display:none;">
+        <div class="record-zone">
+          <div class="rz-label">AI Rewrite</div>
+          <textarea id="cleanupInput" style="width:100%;height:120px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:12px 14px;font-size:14px;font-family:var(--font-ui);resize:vertical;outline:none;line-height:1.65;" placeholder="Type or paste text here to rewrite it with AI…"></textarea>
+          <div class="controls-row" style="margin-top:10px;">
+            <div class="mode-pills">
+              <div class="mode-pill active" data-mode2="clean" onclick="setMode2(this,'clean')">✨ Polish</div>
+              <div class="mode-pill" data-mode2="bullets" onclick="setMode2(this,'bullets')">• Bullets</div>
+              <div class="mode-pill" data-mode2="email" onclick="setMode2(this,'email')">📧 Email</div>
+              <div class="mode-pill" data-mode2="shorter" onclick="setMode2(this,'shorter')">⚡ Shorter</div>
+              <div class="mode-pill" data-mode2="formal" onclick="setMode2(this,'formal')">📄 Formal</div>
+            </div>
+          </div>
+          <div class="controls-row">
+            <button class="btn btn-primary" onclick="runCleanup()">✨ Rewrite with AI</button>
+          </div>
+          <div id="cleanupOutput" style="display:none; margin-top:14px;">
+            <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Result</div>
+            <div class="live-box has-text" id="cleanupResult"></div>
+            <div class="controls-row">
+              <button class="btn btn-secondary" onclick="copyCleanup()">📋 Copy result</button>
+              <button class="btn btn-secondary" onclick="saveCleanup()">💾 Save to history</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── VIEW: Paste & Clean ── -->
+      <div id="view-bulk" style="display:none;">
+        <div class="record-zone">
+          <div class="rz-label">Paste &amp; Clean</div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Paste any messy text (meeting notes, WhatsApp dump, rough voice notes) and get a clean version.</p>
+          <textarea id="bulkInput" style="width:100%;height:160px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:12px 14px;font-size:14px;font-family:var(--font-ui);resize:vertical;outline:none;line-height:1.65;" placeholder="Paste your text here…"></textarea>
+          <div class="controls-row" style="margin-top:10px;">
+            <button class="btn btn-primary" onclick="runBulk()">✨ Clean it up</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('bulkInput').value=''">Clear</button>
+          </div>
+          <div id="bulkOutput" style="display:none; margin-top:14px;">
+            <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;">Cleaned</div>
+            <div class="live-box has-text" id="bulkResult"></div>
+            <div class="controls-row">
+              <button class="btn btn-secondary" onclick="copyBulk()">📋 Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content-area -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+const state = {
+  recording:    false,
+  processing:   false,
+  transcript:   '',
+  processedText:'',
+  mode:         'clean',
+  mode2:        'clean',
+  history:      [],
+  settings: {
+    autoCopy:    false,
+    floatWidget: true,
+    language:    'en',
+    model:       'llama-3.3-70b-versatile',
+    darkMode:    true,
+  },
+  currentView: 'record',
+  spaceHeld: false,
+  mediaRecorder: null,
+  audioChunks:   [],
+  stream:        null,
+  waveInterval:  null,
+  floatText:     '',
+};
+
+// ── Load from localStorage ────────────────────────────────────────────
+function loadPersist() {
+  try {
+    const h = localStorage.getItem('of_history');
+    if (h) state.history = JSON.parse(h);
+    const s = localStorage.getItem('of_settings');
+    if (s) state.settings = { ...state.settings, ...JSON.parse(s) };
+    const k = localStorage.getItem('of_apikey');
+    if (k) document.getElementById('apiKeyInput').value = k;
+  } catch(e) {}
+  applySettings();
+  renderHistory();
+}
+
+function savePersist() {
+  try {
+    localStorage.setItem('of_history', JSON.stringify(state.history));
+    localStorage.setItem('of_settings', JSON.stringify(state.settings));
+  } catch(e) {}
+}
+
+function applySettings() {
+  // Theme
+  document.body.classList.toggle('light', !state.settings.darkMode);
+  document.getElementById('toggleDark').classList.toggle('on', state.settings.darkMode);
+  document.getElementById('themeBtn').textContent = state.settings.darkMode ? '🌙' : '☀️';
+  // Toggles
+  document.getElementById('toggleAutoCopy').classList.toggle('on', state.settings.autoCopy);
+  document.getElementById('autoOpt').classList.toggle('on', state.settings.autoCopy);
+  document.getElementById('toggleFloat').classList.toggle('on', state.settings.floatWidget);
+  document.getElementById('floatOpt').classList.toggle('on', state.settings.floatWidget);
+  document.getElementById('floatWidget').style.display = state.settings.floatWidget ? '' : 'none';
+  // Selects
+  document.getElementById('langSelect').value = state.settings.language;
+  document.getElementById('langInline').value = state.settings.language;
+  document.getElementById('modelSelect').value = state.settings.model;
+}
+
+// ── API key ───────────────────────────────────────────────────────────
+function saveApiKey() {
+  const v = document.getElementById('apiKeyInput').value.trim();
+  if (!v) { toast('Enter a Groq API key first', 'error'); return; }
+  localStorage.setItem('of_apikey', v);
+  toast('API key saved ✓', 'success');
+}
+function clearApiKey() {
+  localStorage.removeItem('of_apikey');
+  document.getElementById('apiKeyInput').value = '';
+  toast('API key cleared');
+}
+function getApiKey() { return localStorage.getItem('of_apikey') || ''; }
+
+// ── Recording ─────────────────────────────────────────────────────────
+async function startRecording() {
+  if (state.recording || state.processing) return;
+  try {
+    state.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(e) {
+    toast('Microphone access denied. Check browser permissions.', 'error');
+    return;
+  }
+  state.audioChunks = [];
+  state.mediaRecorder = new MediaRecorder(state.stream, { mimeType: getSupportedMimeType() });
+  state.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) state.audioChunks.push(e.data); };
+  state.mediaRecorder.onstop = handleRecordingStop;
+  state.mediaRecorder.start(100);
+  state.recording = true;
+  setRecordingUI(true);
+}
+
+function getSupportedMimeType() {
+  const types = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/mp4'];
+  return types.find(t => MediaRecorder.isTypeSupported(t)) || '';
+}
+
+function stopRecording() {
+  if (!state.recording) return;
+  state.recording = false;
+  state.mediaRecorder?.stop();
+  state.stream?.getTracks().forEach(t => t.stop());
+}
+
+function toggleRecord() {
+  if (state.recording) stopRecording();
+  else startRecording();
+}
+
+function setRecordingUI(on) {
+  const mic = document.getElementById('mainMic');
+  const fmicEl = document.getElementById('floatMic');
+  const wb   = document.getElementById('waveBar');
+  const ms   = document.getElementById('micStatus');
+  const lb   = document.getElementById('liveBox');
+  if (on) {
+    mic.textContent = '⏹️';
+    mic.classList.add('recording');
+    fmicEl.classList.add('recording');
+    fmicEl.textContent = '⏹️';
+    wb.classList.add('active');
+    ms.textContent = 'Recording… click or release Space to stop';
+    ms.className = 'mic-status live';
+    lb.classList.add('recording-active');
+    lb.textContent = 'Listening…';
+    lb.classList.remove('has-text');
+    document.getElementById('floatCard').classList.add('visible');
+    document.getElementById('floatTranscript').textContent = 'Recording…';
+    document.getElementById('floatTranscript').classList.remove('has-text');
+    startWaveAnim();
+  } else {
+    mic.textContent = '⏳';
+    mic.classList.remove('recording');
+    mic.classList.add('processing');
+    fmicEl.classList.remove('recording');
+    fmicEl.classList.add('processing');
+    fmicEl.textContent = '⏳';
+    wb.classList.remove('active');
+    ms.textContent = 'Transcribing…';
+    ms.className = 'mic-status proc';
+    stopWaveAnim();
+  }
+}
+
+function setIdleUI() {
+  const mic = document.getElementById('mainMic');
+  const fmic = document.getElementById('floatMic');
+  mic.textContent = '🎙️';
+  mic.classList.remove('recording', 'processing');
+  fmic.textContent = '🎙️';
+  fmic.classList.remove('recording', 'processing');
+  document.getElementById('micStatus').textContent = 'Click mic or hold Space to start';
+  document.getElementById('micStatus').className = 'mic-status';
+  document.getElementById('liveBox').classList.remove('recording-active');
+  stopWaveAnim();
+}
+
+// ── Waveform animation ────────────────────────────────────────────────
+function startWaveAnim() {
+  stopWaveAnim();
+  const bars = document.querySelectorAll('#waveBar span');
+  state.waveInterval = setInterval(() => {
+    bars.forEach(b => {
+      const h = Math.random() * 22 + 4;
+      b.style.height = h + 'px';
+    });
+  }, 80);
+}
+function stopWaveAnim() {
+  clearInterval(state.waveInterval);
+  document.querySelectorAll('#waveBar span').forEach(b => b.style.height = '4px');
+}
+
+// ── Handle stop → transcribe ──────────────────────────────────────────
+async function handleRecordingStop() {
+  const blob = new Blob(state.audioChunks, { type: 'audio/webm' });
+  state.processing = true;
+  if (blob.size < 1000) {
+    toast('Recording too short. Try again.', 'error');
+    setIdleUI(); state.processing = false; return;
+  }
+  try {
+    const text = await transcribeAudio(blob);
+    state.transcript = text;
+    state.processedText = text;
+    const lb = document.getElementById('liveBox');
+    lb.textContent = text;
+    lb.classList.add('has-text');
+    document.getElementById('floatTranscript').textContent = text.slice(0, 120) + (text.length > 120 ? '…' : '');
+    document.getElementById('floatTranscript').classList.add('has-text');
+    enableButtons(true);
+    if (state.settings.autoCopy) { navigator.clipboard.writeText(text).catch(()=>{}); toast('Copied ✓', 'success'); }
+    // Auto-process if not raw mode
+    if (state.mode !== 'raw') processTranscript();
+  } catch(e) {
+    toast('Transcription failed: ' + (e.message || e), 'error');
+    document.getElementById('liveBox').textContent = '❌ Error: ' + (e.message || 'Transcription failed');
+  } finally {
+    state.processing = false;
+    setIdleUI();
+  }
+}
+
+// ── Transcribe via Groq Whisper ───────────────────────────────────────
+async function transcribeAudio(blob) {
+  const key = getApiKey();
+  if (!key) {
+    // Fallback: use browser's built-in speech recognition
+    return useBrowserSpeech();
+  }
+  const lang = (document.getElementById('langInline') || document.getElementById('langSelect')).value;
+  const form = new FormData();
+  form.append('file', blob, 'audio.webm');
+  form.append('model', 'whisper-large-v3');
+  if (lang !== 'auto') form.append('language', lang);
+  form.append('response_format', 'json');
+  const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + key },
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || ('HTTP ' + res.status));
+  }
+  const data = await res.json();
+  return data.text?.trim() || '';
+}
+
+// ── Browser speech fallback (no API key) ─────────────────────────────
+function useBrowserSpeech() {
+  return new Promise((resolve, reject) => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      reject(new Error('No API key set and browser does not support speech recognition. Add your Groq key in Settings.'));
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new SR();
+    r.lang = (document.getElementById('langInline')?.value || 'en') + '-IN';
+    r.interimResults = false;
+    r.onresult = e => resolve(Array.from(e.results).map(r=>r[0].transcript).join(' '));
+    r.onerror = e => reject(new Error(e.error));
+    r.start();
+    setTimeout(() => r.stop(), 8000);
+  });
+}
+
+// ── AI cleanup via Groq ───────────────────────────────────────────────
+const PROMPTS = {
+  clean:   t => `Fix grammar, punctuation, and clarity. Remove filler words. Keep the meaning and length similar. Return only the cleaned text, nothing else:\n\n${t}`,
+  bullets: t => `Convert this to clear bullet points. Each bullet should be one distinct point. Return only the bullets:\n\n${t}`,
+  email:   t => `Convert this into a professional email draft. Add Subject, greeting, body, and sign-off. Return only the email:\n\n${t}`,
+  raw:     t => t,
+  shorter: t => `Rewrite this to be 50% shorter while keeping all key information. Return only the rewritten text:\n\n${t}`,
+  formal:  t => `Rewrite this in formal professional language. Return only the rewritten text:\n\n${t}`,
+};
+
+async function callGroqLLM(prompt) {
+  const key = getApiKey();
+  if (!key) throw new Error('No API key. Add your Groq API key in Settings → Groq API Key.');
+  const model = document.getElementById('modelSelect').value;
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 1024,
+      temperature: 0.3,
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err?.error?.message || ('HTTP ' + res.status));
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content?.trim() || '';
+}
+
+async function processTranscript() {
+  if (!state.transcript) { toast('Nothing to process', 'error'); return; }
+  if (state.mode === 'raw') { setResult(state.transcript); return; }
+  setBtnLoading('btnProcess', true);
+  try {
+    const result = await callGroqLLM(PROMPTS[state.mode](state.transcript));
+    setResult(result);
+  } catch(e) {
+    toast('AI error: ' + (e.message || e), 'error');
+  } finally {
+    setBtnLoading('btnProcess', false);
+  }
+}
+
+function setResult(text) {
+  state.processedText = text;
+  const lb = document.getElementById('liveBox');
+  lb.textContent = text;
+  lb.classList.add('has-text');
+  enableButtons(true);
+  document.getElementById('floatTranscript').textContent = text.slice(0,120) + (text.length>120?'…':'');
+  document.getElementById('floatTranscript').classList.add('has-text');
+  if (state.settings.autoCopy) { navigator.clipboard.writeText(text).catch(()=>{}); }
+}
+
+// ── Cleanup view ──────────────────────────────────────────────────────
+async function runCleanup() {
+  const text = document.getElementById('cleanupInput').value.trim();
+  if (!text) { toast('Enter some text first', 'error'); return; }
+  try {
+    document.getElementById('cleanupOutput').style.display = 'none';
+    const result = await callGroqLLM(PROMPTS[state.mode2](text));
+    document.getElementById('cleanupResult').textContent = result;
+    document.getElementById('cleanupOutput').style.display = '';
+  } catch(e) { toast('AI error: ' + (e.message || e), 'error'); }
+}
+function copyCleanup() {
+  const t = document.getElementById('cleanupResult').textContent;
+  navigator.clipboard.writeText(t).then(()=>toast('Copied ✓','success'));
+}
+function saveCleanup() {
+  const t = document.getElementById('cleanupResult').textContent;
+  addToHistory(t, state.mode2);
+  toast('Saved ✓', 'success');
+}
+
+async function runBulk() {
+  const text = document.getElementById('bulkInput').value.trim();
+  if (!text) { toast('Paste some text first', 'error'); return; }
+  try {
+    document.getElementById('bulkOutput').style.display = 'none';
+    const result = await callGroqLLM(`Clean and organize this text. Fix grammar, remove redundancy, improve readability. Return only the cleaned text:\n\n${text}`);
+    document.getElementById('bulkResult').textContent = result;
+    document.getElementById('bulkOutput').style.display = '';
+  } catch(e) { toast('AI error: ' + (e.message || e), 'error'); }
+}
+function copyBulk() {
+  const t = document.getElementById('bulkResult').textContent;
+  navigator.clipboard.writeText(t).then(()=>toast('Copied ✓','success'));
+}
+
+// ── History ───────────────────────────────────────────────────────────
+function addToHistory(text, mode) {
+  const item = { id: Date.now(), text, mode, ts: new Date().toISOString() };
+  state.history.unshift(item);
+  if (state.history.length > 200) state.history.length = 200;
+  savePersist();
+  renderHistory();
+}
+
+function saveToHistory() {
+  if (!state.processedText) return;
+  addToHistory(state.processedText, state.mode);
+  toast('Saved to history ✓', 'success');
+}
+
+function deleteHistory(id) {
+  state.history = state.history.filter(h => h.id !== id);
+  savePersist();
+  renderHistory();
+}
+
+function clearHistory() {
+  if (!confirm('Clear all history?')) return;
+  state.history = [];
+  savePersist();
+  renderHistory();
+  toast('History cleared');
+}
+
+function copyHistoryItem(id, btn) {
+  const item = state.history.find(h => h.id === id);
+  if (!item) return;
+  navigator.clipboard.writeText(item.text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+function renderHistory() {
+  const count = state.history.length;
+  document.getElementById('historyBadge').textContent = count;
+  document.getElementById('histCount').textContent = count + ' item' + (count !== 1 ? 's' : '');
+  if (document.getElementById('histCountFull')) document.getElementById('histCountFull').textContent = count + ' item' + (count !== 1 ? 's' : '');
+
+  const html = count === 0
+    ? '<div class="history-empty fade-in"><div class="icon">🎙️</div><div>No recordings yet.<br>Click the mic or hold <strong>Space</strong> to start.</div></div>'
+    : state.history.map(h => buildCard(h)).join('');
+  document.getElementById('historyList').innerHTML = html;
+  if (document.getElementById('historyListFull')) document.getElementById('historyListFull').innerHTML = html || '<div class="history-empty fade-in"><div class="icon">🗂️</div><div>No saved transcriptions yet.</div></div>';
+}
+
+function buildCard(h) {
+  const d = new Date(h.ts);
+  const timeStr = d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  const tagMap = { clean:'clean', bullets:'bullet', email:'email', raw:'raw', shorter:'raw', formal:'clean' };
+  const tag = tagMap[h.mode] || 'raw';
+  const tagLabel = { clean:'AI Cleaned', bullets:'Bullets', email:'Email', raw:'Raw' }[tag] || h.mode;
+  const preview = h.text.length > 280 ? h.text.slice(0, 280) + '…' : h.text;
+  return `<div class="h-card fade-in">
+    <div class="h-card-header">
+      <div class="h-card-meta">
+        <span class="h-tag ${tag}">${tagLabel}</span>
+        <span class="h-card-time">${timeStr}</span>
+      </div>
+    </div>
+    <div class="h-card-body">${escHtml(preview)}</div>
+    <div class="h-card-actions">
+      <button class="h-btn" onclick="copyHistoryItem(${h.id}, this)">Copy</button>
+      <button class="h-btn" onclick="navigator.clipboard.writeText(${JSON.stringify(h.text)}); toast('Copied full text ✓','success')">Full copy</button>
+      <button class="h-btn del" onclick="deleteHistory(${h.id})">Delete</button>
+    </div>
+  </div>`;
+}
+
+function escHtml(t) {
+  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Buttons / UI helpers ──────────────────────────────────────────────
+function enableButtons(on) {
+  ['btnCopy','btnSave','btnClear','btnProcess'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !on;
+  });
+}
+function setBtnLoading(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.disabled = on;
+  el.textContent = on ? '⏳ Processing…' : '✨ Process with AI';
+}
+
+function clearLive() {
+  state.transcript = ''; state.processedText = '';
+  const lb = document.getElementById('liveBox');
+  lb.textContent = 'Your spoken text will appear here in real time…';
+  lb.classList.remove('has-text', 'recording-active');
+  enableButtons(false);
+  document.getElementById('floatCard').classList.remove('visible');
+}
+
+function copyResult() {
+  if (!state.processedText) return;
+  navigator.clipboard.writeText(state.processedText).then(()=>toast('Copied ✓','success'));
+}
+function copyFloat() {
+  const t = document.getElementById('floatTranscript').textContent;
+  navigator.clipboard.writeText(t).then(()=>toast('Copied ✓','success'));
+}
+
+// ── Mode pills ────────────────────────────────────────────────────────
+function setMode(el, mode) {
+  state.mode = mode;
+  document.querySelectorAll('[data-mode]').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+function setMode2(el, mode) {
+  state.mode2 = mode;
+  document.querySelectorAll('[data-mode2]').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── Settings ──────────────────────────────────────────────────────────
+function openSettings() { document.getElementById('settingsPanel').classList.add('open'); }
+function closeSettings() { document.getElementById('settingsPanel').classList.remove('open'); }
+document.getElementById('settingsPanel').addEventListener('click', e => {
+  if (e.target === document.getElementById('settingsPanel')) closeSettings();
+});
+
+function toggleSetting(key, btn) {
+  state.settings[key] = !state.settings[key];
+  btn.classList.toggle('on', state.settings[key]);
+  // sync paired toggles
+  if (key === 'autoCopy') {
+    document.getElementById('toggleAutoCopy').classList.toggle('on', state.settings[key]);
+    document.getElementById('autoOpt').classList.toggle('on', state.settings[key]);
+  }
+  if (key === 'floatWidget') {
+    document.getElementById('toggleFloat').classList.toggle('on', state.settings[key]);
+    document.getElementById('floatOpt').classList.toggle('on', state.settings[key]);
+    document.getElementById('floatWidget').style.display = state.settings[key] ? '' : 'none';
+  }
+  savePersist();
+}
+
+function toggleTheme(btn) {
+  state.settings.darkMode = !state.settings.darkMode;
+  document.body.classList.toggle('light', !state.settings.darkMode);
+  btn.classList.toggle('on', state.settings.darkMode);
+  document.getElementById('themeBtn').textContent = state.settings.darkMode ? '🌙' : '☀️';
+  savePersist();
+}
+function toggleThemeBtn() {
+  toggleTheme(document.getElementById('toggleDark'));
+}
+
+document.getElementById('langSelect').addEventListener('change', e => {
+  state.settings.language = e.target.value;
+  document.getElementById('langInline').value = e.target.value;
+  savePersist();
+});
+document.getElementById('langInline').addEventListener('change', e => {
+  state.settings.language = e.target.value;
+  document.getElementById('langSelect').value = e.target.value;
+  savePersist();
+});
+document.getElementById('modelSelect').addEventListener('change', e => {
+  state.settings.model = e.target.value;
+  savePersist();
+});
+
+// ── View switching ────────────────────────────────────────────────────
+const VIEWS = ['record','history','cleanup','bulk'];
+function setView(v, navEl) {
+  state.currentView = v;
+  VIEWS.forEach(id => { const el = document.getElementById('view-'+id); if(el) el.style.display = (id===v) ? '' : 'none'; });
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  if (navEl) navEl.classList.add('active');
+  const titles = { record:'Dictate', history:'History', cleanup:'AI Rewrite', bulk:'Paste & Clean' };
+  document.getElementById('topbarTitle').textContent = titles[v] || v;
+  if (v==='history') renderHistory();
+}
+
+// ── Sidebar toggle ────────────────────────────────────────────────────
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  if (window.innerWidth <= 640) { s.classList.toggle('mobile-open'); }
+  else { s.classList.toggle('collapsed'); }
+}
+
+// ── Keyboard shortcut (Space hold) ───────────────────────────────────
+let spaceTimer = null;
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && !e.target.matches('input,textarea,select') && !state.spaceHeld) {
+    e.preventDefault();
+    state.spaceHeld = true;
+    startRecording();
+  }
+  if (e.key === 'Escape') { stopRecording(); closeSettings(); }
+});
+document.addEventListener('keyup', e => {
+  if (e.code === 'Space' && state.spaceHeld) {
+    e.preventDefault();
+    state.spaceHeld = false;
+    stopRecording();
+  }
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────
+let toastTimer;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ── Version switch ────────────────────────────────────────────────────
+function switchVersion(v) {
+  localStorage.setItem('of_version', v);
+  location.href = v + '.html';
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+loadPersist();
+enableButtons(false);
+</script>
+</body>
+</html>

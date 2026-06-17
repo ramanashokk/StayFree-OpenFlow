@@ -1,117 +1,131 @@
-# OpenFlow 🎙️
+# StayFree OpenFlow 🎙️
 
-**Free, open-source voice dictation for your entire computer.**
+> AI-powered voice dictation. Free forever. No subscriptions.
 
-Hold a key → speak → release → text appears wherever your cursor is.
-
-Works in any app: Notion, Gmail, Slack, VS Code, Terminal — anything with a text field.
+A full-featured Wispr Flow alternative — built as a single HTML file, deployable anywhere, with zero backend. Your API key stays in your browser. No server, no tracking, no paywalls.
 
 ---
 
 ## Features
 
-- **Hold-to-talk** — hold `Right Shift` (configurable), speak, release
-- **Local transcription** — powered by [faster-whisper](https://github.com/SYSTRAN/faster-whisper), runs 100% offline
-- **AI cleanup** — optional LLM pass removes filler words, fixes punctuation (OpenAI or Anthropic)
-- **Universal injection** — pastes into any focused app via clipboard
-- **100+ languages** — anything Whisper supports
-- **System tray** — lives quietly in your menubar/taskbar
-- **No cloud required** — your voice never leaves your machine (unless you enable AI cleanup)
+- **Voice dictation** — Click mic or hold `Space` to record, release to transcribe
+- **Groq Whisper** (`whisper-large-v3`) — Same engine pros use, free tier is very generous
+- **Browser speech fallback** — Works without any API key via Web Speech API
+- **AI post-processing** — 4 modes: Clean up · Bullet points · Email draft · Raw transcript
+- **Floating mic widget** — Always-visible overlay, Wispr-style
+- **AI Rewrite tool** — Paste any text, rewrite in 5 styles
+- **Paste & Clean** — Dump messy notes, get structured output
+- **History** — All transcriptions saved locally in browser (up to 200 items)
+- **Dark / Light mode**
+- **Language selector** — EN, HI, ES, FR, DE, ZH, AR, PT, JA, Auto-detect
+- **Model selector** — Llama 3.3 70B, Llama 3.1 8B, Mixtral 8x7B, Gemma 2 9B
+- **Installable PWA** — Add to home screen on Android/iOS/Desktop
 
 ---
 
-## Install
+## Live Demo
+
+👉 **[ramanashokk.github.io/stayfree-openflow](https://ramanashokk.github.io/stayfree-openflow)**
+
+---
+
+## Setup
+
+### 1. Get a free Groq API key
+
+Sign up at [console.groq.com](https://console.groq.com) — free tier includes:
+- **6,000 requests/minute** for Whisper transcription
+- **Generous limits** for LLaMA / Mixtral cleanup
+
+### 2. Add your key in the app
+
+Open the app → ⚙️ Settings → Groq API Key → paste your key → Save.
+
+The key is stored only in your browser's `localStorage`. It never leaves your device.
+
+### 3. Use it
+
+| Action | How |
+|---|---|
+| Start recording | Click 🎙️ or hold `Space` |
+| Stop recording | Click again or release `Space` |
+| Cancel | `Escape` |
+| Copy result | `📋 Copy` button or auto-copy toggle |
+
+---
+
+## Deploy Your Own
+
+### GitHub Pages (simplest)
 
 ```bash
-git clone https://github.com/yourusername/openflow
-cd openflow
-pip install -r requirements.txt
+git clone https://github.com/ramanashokk/stayfree-openflow
+cd stayfree-openflow
+# drop your index.html + manifest.json here
+git add .
+git commit -m "deploy"
+git push
 ```
 
-> **macOS:** You'll need to grant Accessibility and Microphone permissions in System Preferences.  
-> **Linux:** You may need `sudo apt install xdotool` for xdotool injection mode.  
-> **Windows:** Run as Administrator if hotkeys don't register.
+Then: **Settings → Pages → Branch: main → Save**
+
+Live at `https://ramanashokk.github.io/stayfree-openflow`
+
+### Netlify / Vercel
+
+Drag and drop the `index.html` file into [netlify.com/drop](https://netlify.com/drop) — live in 10 seconds.
 
 ---
 
-## Run
+## File Structure
 
-```bash
-python src/main.py
 ```
-
-A tray icon appears. **Hold Right Shift to dictate.** Release to transcribe and inject.
+stayfree-openflow/
+├── index.html       ← Entire app (single file, no dependencies)
+├── manifest.json    ← PWA manifest (installable)
+├── icon-192.png     ← App icon (add your own)
+├── icon-512.png     ← App icon (add your own)
+└── README.md
+```
 
 ---
 
-## Configure
+## Tech Stack
 
-On first run, a config file is created at `~/.openflow/config.toml`. Right-click the tray icon → **Open Config** to edit it.
+| Layer | What |
+|---|---|
+| Transcription | Groq Whisper Large v3 |
+| AI cleanup | Groq LLaMA 3.3 70B / Mixtral / Gemma |
+| Frontend | Vanilla HTML + CSS + JS (zero dependencies) |
+| Storage | Browser `localStorage` |
+| Hosting | GitHub Pages |
 
-```toml
-[general]
-hotkey = "shift_r"       # Key to hold: shift_r, shift_l, ctrl_r, f13, caps_lock, ...
-language = "en"          # Transcription language
-sound_feedback = true
-
-[transcription]
-model = "base"           # tiny / base / small / medium / large-v3
-device = "auto"          # cpu / cuda / auto
-compute_type = "int8"
-
-[ai_cleanup]
-enabled = true
-provider = "openai"      # openai / anthropic / none
-# api_key = "sk-..."     # Or set OPENAI_API_KEY env var
-remove_fillers = true
-fix_punctuation = true
-
-[audio]
-device_index = -1        # -1 = default mic
-
-[injection]
-method = "clipboard"     # clipboard / xdotool (Linux)
-paste_delay_ms = 50
-```
-
-### Model sizes
-
-| Model    | Size  | Speed  | Accuracy |
-|----------|-------|--------|----------|
-| tiny     | 75MB  | ⚡⚡⚡⚡ | ★★☆☆☆   |
-| base     | 145MB | ⚡⚡⚡  | ★★★☆☆   |
-| small    | 460MB | ⚡⚡    | ★★★★☆   |
-| medium   | 1.5GB | ⚡     | ★★★★☆   |
-| large-v3 | 3GB   | 🐢     | ★★★★★   |
-
-`base` is the best starting point. Use `large-v3` for maximum accuracy on a GPU.
+No Node.js. No build step. No npm install. Open the HTML file and it works.
 
 ---
 
 ## Privacy
 
-- All transcription is local by default — nothing is sent anywhere
-- AI cleanup is **opt-in** and requires your own API key
-- No telemetry, no accounts, no subscriptions
+- **Your audio** is sent to Groq's API for transcription (see [groq.com/privacy](https://groq.com/privacy))
+- **Your API key** is stored only in your browser, never on any server
+- **Your transcriptions** are stored only in your browser's localStorage
+- **This app** has no analytics, no telemetry, no ads
 
 ---
 
-## Roadmap
+## Part of the StayFree ecosystem
 
-- [ ] Voice commands ("select all", "new line", "undo")
-- [ ] Per-app context awareness (code mode, email mode)
-- [ ] Custom vocabulary / word corrections
-- [ ] GUI settings panel
-- [ ] macOS/Windows installers
-
----
-
-## Contributing
-
-PRs welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
+| Product | Description | Status |
+|---|---|---|
+| [StayFree Text](https://ramanashokk.github.io/Stayfree) | Voice dictation with premium tier | Live |
+| **StayFree OpenFlow** | Voice dictation, fully free | Live |
 
 ---
 
 ## License
 
-MIT
+MIT — use it, fork it, deploy it, sell it. No restrictions.
+
+---
+
+*Built by [@ramanashokk](https://github.com/ramanashokk)*
