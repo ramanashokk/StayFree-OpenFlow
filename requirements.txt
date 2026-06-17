@@ -1,0 +1,22 @@
+# OpenFlow dependencies
+
+# Audio capture
+sounddevice>=0.4.6
+
+# Local speech-to-text (Whisper)
+faster-whisper>=1.0.0
+
+# Global hotkey detection
+pynput>=1.7.6
+
+# Text injection
+pyperclip>=1.8.2
+pyautogui>=0.9.54
+
+# System tray icon
+pystray>=0.19.4
+Pillow>=10.0.0
+
+# Optional: AI cleanup providers (install whichever you use)
+# openai>=1.0.0
+# anthropic>=0.20.0
