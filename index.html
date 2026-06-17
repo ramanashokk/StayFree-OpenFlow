@@ -42,17 +42,7 @@
 
 <script>
   (function () {
-    // Check for manual override stored from a previous visit
-    const override = localStorage.getItem('of_version');
-    if (override === 'mobile')  { location.replace('mobile.html');  return; }
-    if (override === 'desktop') { location.replace('desktop.html'); return; }
-
-    // Auto-detect: use both UA and screen width
-    const isTouchUA  = /Android|iPhone|iPad|iPod|Mobile|Tablet/i.test(navigator.userAgent);
-    const isNarrow   = window.innerWidth < 768;
-    const isMobile   = isTouchUA || isNarrow;
-
-    location.replace(isMobile ? 'mobile.html' : 'desktop.html');
+    location.replace('mobile.html');
   })();
 </script>
 </body>
