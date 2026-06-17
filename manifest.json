@@ -2,7 +2,8 @@
   "name": "StayFree OpenFlow",
   "short_name": "OpenFlow",
   "description": "AI-powered voice dictation. Free forever. No subscriptions.",
-  "start_url": "/",
+  "start_url": "/StayFree-OpenFlow/mobile.html",
+  "scope": "/StayFree-OpenFlow/",
   "display": "standalone",
   "background_color": "#0B0C0E",
   "theme_color": "#6366F1",
@@ -23,20 +24,12 @@
   ],
   "categories": ["productivity", "utilities"],
   "lang": "en",
-  "scope": "/",
   "shortcuts": [
     {
       "name": "Dictate",
       "short_name": "Dictate",
       "description": "Start voice dictation",
-      "url": "/?view=record",
-      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "History",
-      "short_name": "History",
-      "description": "View past transcriptions",
-      "url": "/?view=history",
+      "url": "/StayFree-OpenFlow/mobile.html",
       "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
     }
   ]
