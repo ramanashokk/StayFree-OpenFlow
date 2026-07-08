@@ -1,0 +1,15 @@
+name = "openflow-worker"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Create with: wrangler kv:namespace create USAGE_KV
+# Then paste the returned id below.
+kv_namespaces = [
+  { binding = "USAGE_KV", id = "REPLACE_WITH_KV_NAMESPACE_ID" }
+]
+
+# Set with: wrangler secret put GROQ_API_KEY
+# (do not put the actual key in this file)
+
+[vars]
+FIREBASE_PROJECT_ID = "REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID"
